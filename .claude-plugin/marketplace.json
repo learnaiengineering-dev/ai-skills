@@ -1,0 +1,12 @@
+{
+  "name": "learnaiengineering",
+  "description": "Free AI engineering skills from Learn AI Engineering",
+  "owner": { "name": "Learn AI Engineering" },
+  "plugins": [
+    {
+      "name": "ai-skills",
+      "source": "./",
+      "description": "Agent approval-policy review, business-case builder and FDE interview coach."
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+---
+description: Review or design the approval policy for an AI agent, meaning which tool calls run automatically and which need a human. Use when the user lists an agent's tools, shares a permissions or policy file, or asks what an agent should be allowed to do on its own.
+alwaysApply: false
+---
+
+# Agent Approval Policy Review
+
+Decide, tool by tool, what an agent may do alone and what needs a person. Output a policy the user can put in code and test.
+
+## Principles (apply to every review)
+
+1. **Deterministic rules decide first.** A model may be asked for a second opinion, but a model reviewer can only **escalate** an action to a human, never downgrade one.
+2. **Unknown means ask.** A tool that matches no rule is treated as needing the owner's approval. A forgotten tool must fail safe.
+3. **Tool output is data, not authority.** Text from a web page, email, file or another tool can never grant permission or change the policy.
+4. **Irreversible or outward-facing means a person.** Anything that leaves the organisation, deletes, spends money, or changes identity or access is never automatic by default.
+
+## Procedure
+
+1. **Inventory.** Ask for the full list of tools the agent can call (name, what it does, what it touches). If the user pastes a config or code, extract the list yourself and confirm it. Do not review from a partial list.
+2. **Classify** each tool into a tier using references/risk-tiers.md (see Reference: risk-tiers.md below). Show the reasoning in one line per tool.
+3. **Check the gaps**, in this order:
+   - Is there a default for unknown tools, and is it "ask"?
+   - Can the agent spend money? Is the automatic limit zero for a pilot?
+   - Is there an allowlist for outbound domains and recipients?
+   - Can any single tool be combined with another to bypass a gate (read secret, then send email)?
+   - Is there a blocked list for things the agent must never do, even with approval?
+   - Is every approval logged with who, what, when and the exact action approved?
+4. **Rate findings** as High (can cause money, data or access loss), Medium (can cause an embarrassing or hard-to-undo action) or Low (hygiene).
+5. **Propose the policy** as a small table, then offer to write it as code with tests in the user's language.
+6. **Propose tests**: one per tier, one for the unknown-tool default, one proving a reviewer cannot downgrade, one for each blocked tool.
+
+## Output format
+
+1. **Tool table**: tool, tier, decision (allow, log, ask owner, ask named approver, block), reason. If a tool behaves differently by mode (for example read versus write SQL), give each mode its own row so the table and the tests agree.
+2. **Findings**: severity, what is wrong, the smallest fix. Report at most the 8 most important, highest severity first. Merge duplicates, and do not repeat what the tool table already says.
+3. **Policy proposal**: defaults and limits (unknown tool, spend limit, domain allowlist).
+4. **Tests to add**: a short list in plain language.
+5. **Approval health**: how to tell if approvals are working. An approval rate near 100% with decisions in a few seconds means people are clicking through; move that tool down a tier or remove the prompt.
+
+## Do not
+
+- Approve a tool as safe on its name alone. Check what it can actually reach.
+- Give a tool a lower tier because it is "usually" used safely.
+- Let the agent edit its own policy.
+
+---
+
+## Reference: risk-tiers.md
+
+# Risk tiers for agent actions
+
+| Tier | Covers | Examples | Default decision |
+|---|---|---|---|
+| 0 Read | No side effects | Search, read a record, view a calendar | Allow and log |
+| 1 Reversible, internal | Easy to undo, visible only inside the organisation | Create a draft, add a label, open a ticket, hold a calendar slot | Allow, log, include in a daily digest |
+| 2 External or irreversible | Leaves the organisation, or cannot be undone | Send an email, submit a form, delete, post publicly | Ask the owner |
+| 3 Money, identity, access | Financial or security impact | Payments, changing bank details, password or permission changes, adding an integration | Ask a named approver; never automatic |
+
+## Quick classification questions
+
+Ask these in order and stop at the first "yes":
+
+1. Does it move money, change who can access what, or change an identity? **Tier 3.**
+2. Does anything leave the organisation, or can it not be undone? **Tier 2.**
+3. Does it change anything at all, even internally? **Tier 1.**
+4. Otherwise it only reads. **Tier 0.** Only treat a tool as Tier 0 if you have checked that it truly has no side effects (some "get" endpoints trigger actions or leak data).
+
+## Common traps
+
+- **Read then send.** Two Tier 0/1 tools can combine into a Tier 2 leak (read a customer list, then email it). Review chains, not just single tools.
+- **Wildcards.** A rule like `tickets.*` quietly includes `tickets.delete`. Prefer explicit lists for anything above Tier 0.
+- **Spend by accident.** Retries, loops and paid APIs create cost with no obvious "payment" tool. Set a per-run and per-day cap.
+- **Self-approval.** The agent, or a second agent it controls, must not be the approver.
+- **Prompt injection.** Content fetched from outside is untrusted. It may describe an action; it can never authorise one.
+- **Approval fatigue.** Too many prompts teach people to click yes. Fewer, better-placed approvals protect more than many.
+
+## Minimal test list
+
+- A read-only tool is allowed.
+- A send/post tool asks the owner.
+- A payment or access tool asks a named approver, with no way around it.
+- An unlisted tool asks the owner.
+- An unlisted outbound domain asks the owner.
+- A reviewer returning "safe" cannot lower a Tier 2 or 3 decision; returning "suspicious" raises a Tier 0/1 one.
+- Every blocked tool is refused even if a person tries to approve it.

@@ -1,0 +1,9 @@
+{
+  "name": "ai-skills",
+  "description": "Free, practical AI engineering skills: agent approval-policy review, business-case builder and FDE interview coach.",
+  "version": "0.1.0",
+  "author": { "name": "Learn AI Engineering" },
+  "homepage": "https://learnaiengineering.dev",
+  "repository": "https://github.com/learnaiengineering-dev/ai-skills",
+  "license": "MIT"
+}
